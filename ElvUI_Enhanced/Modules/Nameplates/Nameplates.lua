@@ -146,7 +146,7 @@ local separatorMap = {
 local function Update_NameHook(self, frame)
 	if not E.db.enhanced.nameplates.titleCache then return end
 
-	if frame.Health:IsShown() then
+	if frame.Health:IsShown() or (not frame.Name:IsShown() or frame.Name:GetText() == nil) then
 		if frame.Title then
 			frame.Title:SetText()
 			frame.Title:Hide()
@@ -223,7 +223,7 @@ local function Update_NameHook(self, frame)
 				r, g, b = 1, 1, 1
 			end
 			frame.Title:SetTextColor(r, g, b)
-		else
+		else 
 			frame.Title:SetTextColor(db.color.r, db.color.g, db.color.b)
 		end
 

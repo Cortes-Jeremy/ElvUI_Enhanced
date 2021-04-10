@@ -150,6 +150,9 @@ P.enhanced = {
 				["TOTFW"] = true,
 				["BT"] = true,
 				["BWD"] = true
+			},
+			arenaTiers = {
+				["Arena"] = false
 			}
 		}
 	},

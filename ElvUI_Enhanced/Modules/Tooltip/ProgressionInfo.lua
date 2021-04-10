@@ -26,34 +26,51 @@ local UnitLevel = UnitLevel
 local MAX_PLAYER_LEVEL = MAX_PLAYER_LEVEL
 
 local difficulties = {"H25", "H10", "N25", "N10"}
+local arenaBrackets = {"2S", "3S", "SQ", --[[ "RK" ]]}
+
+local arenaStatsTiers = {
+	["Arena"] = {
+		{370}, -- 2s
+		{595}, -- 3s
+		{596}  -- 5s / soloQ
+		--{2090, 2092, 2093, 2091} -- title (chall, duelist, rival, glad)
+	}
+}
+local arenaAchievTiers = {
+	["Arena"] = {
+		{399, 400, 401, 1159}, -- 2s
+		{402, 403, 405, 1160}, -- 3s
+		{406, 407, 404, 1161},  -- 5s / soloQ
+		--{2090, 2092, 2093, 2091} -- title (chall, duelist, rival, glad)
+	}
+}
 
 local statisticTiers = {
 	["RS"] = {
 		{4823},	-- Heroic 25
 		{4822},	-- Heroic 10
 		{4820},	-- Normal 25
-		{4821}	-- Normal 10
+		{4821},	-- Normal 10
 	},
 	["ICC"] = {
 		{4642, 4656, 4661, 4664, 4667, 4670, 4673, 4676, 4679, 4682, 4685, 4688},	-- Heroic 25
 		{4640, 4654, 4659, 4662, 4665, 4668, 4671, 4674, 4677, 4680, 4684, 4686},	-- Heroic 10
 		{4641, 4655, 4660, 4663, 4666, 4669, 4672, 4675, 4678, 4681, 4683, 4687},	-- Normal 25
-		{4639, 4643, 4644, 4645, 4646, 4647, 4648, 4649, 4650, 4651, 4652, 4653}	-- Normal 10
+		{4639, 4643, 4644, 4645, 4646, 4647, 4648, 4649, 4650, 4651, 4652, 4653},	-- Normal 10
 	},
 	["ToC"] = {
 		{4029, 4035, 4039, 4043, 4047},	-- Heroic 25
 		{4030, 4033, 4037, 4041, 4045},	-- Heroic 10
 		{4031, 4034, 4038, 4042, 4046},	-- Normal 25
-		{4028, 4032, 4036, 4040, 4044}	-- Normal 10
+		{4028, 4032, 4036, 4040, 4044}	,-- Normal 10
 	},
 	["Ulduar"] = {
 		{},
 		{},
 		{2872, 2873, 2874, 2884, 2885, 2875, 2882, 3256, 3257, 3258, 2879, 2880, 2883, 2881},	-- Normal 25
-		{2856, 2857, 2858, 2859, 2860, 2861, 2868, 2862, 2863, 2864, 2865, 2866, 2869, 2867}	-- Normal 10
+		{2856, 2857, 2858, 2859, 2860, 2861, 2868, 2862, 2863, 2864, 2865, 2866, 2869, 2867},	-- Normal 10
 	}
 }
-
 local achievementTiers = {
 	["RS"] = {
 		{	-- Heroic 25
@@ -175,14 +192,17 @@ local function GetProgression(guid)
 	if E.db.enhanced.tooltip.progressInfo.checkAchievements then
 		statFunc = guid == E.myguid and isAchievementComplete or isAchievementComparisonComplete
 		tiers = achievementTiers
+		arenaTiers = arenaAchievTiers
 	else
 		statFunc = guid == E.myguid and GetStatistic or GetComparisonStatistic
 		tiers = statisticTiers
+		arenaTiers = arenaStatsTiers
 	end
 
 	local header = progressCache[guid].header
 	local info = progressCache[guid].info
 
+	-- Raid
 	for tier in pairs(tiers) do
 		header[tier] = header[tier] and twipe(header[tier]) or {}
 		info[tier] = info[tier] and twipe(info[tier]) or {}
@@ -215,7 +235,47 @@ local function GetProgression(guid)
 				end
 			end
 		end
+
 	end
+
+	-- Arena
+	header["Arena"] = header["Arena"] and twipe(header["Arena"]) or {}
+	info["Arena"] = info["Arena"] and twipe(info["Arena"]) or {}
+
+	for i, bracket in ipairs(arenaBrackets) do
+		if #arenaTiers["Arena"][i] > 0 then
+			total = #arenaTiers["Arena"][i]
+			killed = 0
+
+			for _, statsID in ipairs(arenaTiers["Arena"][i]) do
+				kills = tonumber(statFunc(statsID))
+
+				if kills and kills > 0 then
+					if E.db.enhanced.tooltip.progressInfo.checkAchievements then
+						killed = killed + 1
+					else
+						killed = kills
+					end
+				end
+			end
+
+			if killed > 0 then
+				header["Arena"][i] = format("%s [%s]:", L["Arena"], bracket)
+
+				if E.db.enhanced.tooltip.progressInfo.checkAchievements then
+					info["Arena"][i] = format("%d/%d", killed, total)
+				else
+					info["Arena"][i] = format("%d", killed)
+				end
+				--[[ if killed == total then
+					break
+				end ]]
+
+			end
+		end
+	end
+
+
 end
 
 local function UpdateProgression(guid)
@@ -235,7 +295,9 @@ local function SetProgressionInfo(guid, tt)
 	if not progressCache[guid] then return end
 
 	local tiers = E.db.enhanced.tooltip.progressInfo.checkAchievements and achievementTiers or statisticTiers
+	local arenaTiers = E.db.enhanced.tooltip.progressInfo.checkAchievements and arenaAchievTiers or arenaStatsTiers
 
+	-- Raid
 	for tier in pairs(tiers) do
 		if E.db.enhanced.tooltip.progressInfo.tiers[tier] then
 			for i = 1, #difficulties do
@@ -245,6 +307,15 @@ local function SetProgressionInfo(guid, tt)
 			end
 		end
 	end
+	-- Arena
+	if E.db.enhanced.tooltip.progressInfo.arenaTiers["Arena"] then
+		for i = 1, #arenaBrackets do
+			if #arenaTiers["Arena"][i] > 0 then
+				tt:AddDoubleLine(progressCache[guid].header["Arena"][i], progressCache[guid].info["Arena"][i], nil, nil, nil, 1, 1, 1)
+			end
+		end
+	end
+
 end
 
 local function ShowInspectInfo(tt)
@@ -314,7 +385,15 @@ end
 function PI:UpdateSettings()
 	local enabled
 
+	-- Raid
 	for _, state in pairs(E.db.enhanced.tooltip.progressInfo.tiers) do
+		if state then
+			enabled = state
+			break
+		end
+	end
+	-- Arena
+	for _, state in pairs(E.db.enhanced.tooltip.progressInfo.arenaTiers) do
 		if state then
 			enabled = state
 			break

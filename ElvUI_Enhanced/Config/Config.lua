@@ -1547,6 +1547,24 @@ local function TooltipOptions()
 								name = L["Ulduar"]
 							}
 						}
+					},
+					arenaTiers = {
+						order = 6,
+						type = "group",
+						name = L["Arena Tiers"],
+						get = function(info) return E.db.enhanced.tooltip.progressInfo.arenaTiers[info[#info]] end,
+						set = function(info, value)
+							E.db.enhanced.tooltip.progressInfo.arenaTiers[info[#info]] = value
+							PI:UpdateSettings()
+						end,
+						disabled = function() return not E.db.enhanced.tooltip.progressInfo.enable end,
+						args = {
+							Arena = {
+								order = 1,
+								type = "toggle",
+								name = L["Arena"]
+							}
+						}
 					}
 				}
 			}
